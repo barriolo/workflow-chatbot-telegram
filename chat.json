@@ -1,0 +1,712 @@
+{
+  "name": "chat",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1984,
+        416
+      ],
+      "id": "a9463765-9d47-4522-b752-a0185b6f9c05",
+      "name": "Telegram Trigger",
+      "webhookId": "6d008304-cb3b-498e-960c-74368ee34c6e",
+      "credentials": {
+        "telegramApi": {
+          "id": "XKxO9c8Fnn3UOuBq",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.temperatura }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        608
+      ],
+      "id": "12ddbb34-9e38-418a-a5af-20bf8e41da2e",
+      "name": "Send a text message",
+      "webhookId": "17327850-1374-4e3c-9dca-bfedd7277687",
+      "credentials": {
+        "telegramApi": {
+          "id": "XKxO9c8Fnn3UOuBq",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é um especialista em comunicação pelo whatsapp.\nSua função e formata a msg para enviar para o cliente final informando a temperatura do dia no formato do Brasil.\n\nTemperatura e localidade: {{ $json.main.temp }}, {{ $json.weather[0].description }}, {{ $json.name }}, {{ $json.sys.country }}\nSaida deve ser só mente a msg formatada.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        832,
+        400
+      ],
+      "id": "9ce6759f-6864-4b67-89d0-81c9fb7719cc",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8ffa4fd4-95a5-4ccb-a0be-5f3db75fff38",
+              "name": "temperatura",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1232,
+        400
+      ],
+      "id": "cf729bd8-f070-4cda-8d62-7004f22e7c95",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Você é um agente de sanitização de dados para a API OpenWeatherMap.  O usuário informa apenas uma cidade e a sigla do estado brasileiro (UF).  REGRAS:  1. **Cidade**:    - Remova caracteres especiais inválidos    - Corrija erros de digitação óbvios (ex: \"Sampa\" → \"São Paulo\")    - Normalize acentuação e capitalize corretamente    - Remova espaços extras  2. **UF**:    - Deve ser uma das 27 siglas brasileiras válidas (AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO)    - Converta para maiúsculas    - Se o usuário escreveu o nome do estado por extenso, converta para a sigla (ex: \"São Paulo\" → \"SP\")    - Se a UF for inválida ou não reconhecida, marque como inválido  3. **Combinação cidade + UF**:    - Formate a cidade para uso na API no padrão: \"Cidade,BR\"    - Exemplo: cidade \"São Paulo\", UF \"SP\" → query \"São Paulo,BR\"  4. **Validação**:    - Se não for possível identificar uma cidade válida, marque como inválido    - Nunca invente dados que não possam ser inferidos com segurança  Retorne SOMENTE JSON válido, sem texto adicional, sem markdown, sem explicações.\n\nRetorne um JSON no formato: {query: `Query de busca com nome e uf`}"
+            },
+            {
+              "type": "HumanMessagePromptTemplate",
+              "message": "{{ $json.message.text }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -192,
+        416
+      ],
+      "id": "c4cf76f6-a032-4711-a29a-261abf5ba31f",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "url": "https://api.openweathermap.org/data/2.5/weather",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "units",
+              "value": "metric"
+            },
+            {
+              "name": "lang",
+              "value": "pt"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.text.parseJson().query }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        416
+      ],
+      "id": "7d3aebec-64e9-4bcf-9c55-2d86b235141b",
+      "name": "HTTP Request",
+      "alwaysOutputData": false,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "eFi4yZS4g1upVNCZ",
+          "name": "OpenWeather"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0bb69420-a28d-4960-96c1-ad34e0072111",
+              "leftValue": "={{ $json.cod }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "4b39ff43-22de-4be4-9bea-79ad559fa114",
+              "leftValue": "={{ $json.cod }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        464,
+        416
+      ],
+      "id": "f1798caf-a938-4461-895a-0cdfd6ca9754",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        128,
+        848
+      ],
+      "id": "83e68e5d-55fd-460d-bd64-7985adfc9b91",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5O6c8dvTiLJGtOfG",
+          "name": "teste 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a5814139-abad-4202-9eba-bb995ebd07d4",
+              "name": "temperatura",
+              "value": "Tivemos um erro na chamada da Api! Informe novamente a localiade.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        624
+      ],
+      "id": "7c3e5132-d81b-40d3-a7fb-d44aec531bbc",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "={{ $json.from }}_messages",
+        "messageData": "={{ JSON.stringify({\n  \"from\": $json.message.from.id,\n  \"msg\": {\n    \"date\": $json.message.date,\n    \"content\": $json.message.text\n  }\n}) }}",
+        "tail": true
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1520,
+        416
+      ],
+      "id": "b92c4caf-7e41-435c-b80f-d3eb051feacb",
+      "name": "AddToQueue",
+      "credentials": {
+        "redis": {
+          "id": "HJ4exROZnABmGHJi",
+          "name": "Redis Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "messages",
+        "key": "={{ $('Telegram Trigger').item.json.message.from.id }}_messages",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1248,
+        416
+      ],
+      "id": "1c904d6e-7398-4806-9333-ea028499368e",
+      "name": "GetMessages",
+      "credentials": {
+        "redis": {
+          "id": "HJ4exROZnABmGHJi",
+          "name": "Redis Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.messages.first().parseJson().msg.date}}",
+                    "rightValue": "={{ $('Edit Fields3').item.json.message.date }}",
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    },
+                    "id": "7dfa5e93-91a4-430b-bf49-b70720c048cc"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Do nothing"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "89d902b0-24fc-4ba1-bbff-f2396a89db46",
+                    "leftValue": "={{ DateTime.fromSeconds($json.messages?.last()?.parseJson()?.msg?.date ?? 0) }}",
+                    "rightValue": "={{ $now.minus(15, 'seconds') }}",
+                    "operator": {
+                      "type": "dateTime",
+                      "operation": "before"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Continue"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Wait"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -1024,
+        400
+      ],
+      "id": "1176d366-75b9-46b5-835b-13febc7e218d",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -800,
+        640
+      ],
+      "id": "46e8aab3-3b9e-48cb-8d6f-f83a8fcc1f95",
+      "name": "Wait",
+      "webhookId": "e0f34c17-7e6e-4d18-9888-689cd3e14f54"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "={{ $('Telegram Trigger').item.json.message.from.id }}_messages"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        416
+      ],
+      "id": "e6e6bce1-9e3d-4031-9905-1ff23ec99726",
+      "name": "EraseQueue",
+      "credentials": {
+        "redis": {
+          "id": "HJ4exROZnABmGHJi",
+          "name": "Redis Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "aac709aa-0864-44f9-9798-67ab28884226",
+              "leftValue": "={{ $json.messages }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "72f72124-83e3-4618-b553-9c70ba4f037e",
+              "leftValue": "={{ $json.messages }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "array",
+                "operation": "lengthLte",
+                "rightType": "number"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -768,
+        176
+      ],
+      "id": "1bc67061-137c-4296-80b6-7d8edf23a9b4",
+      "name": "KeepWaiting"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "41548441-b9aa-491a-9921-c184a13631c6",
+              "name": "message.text",
+              "value": "={{ $json.messages.map(item => { const m = JSON.parse(item); return  m.msg.content; }).join('\\n') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -528,
+        416
+      ],
+      "id": "76186b7f-fce5-413a-9756-9c144845cb2c",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=6420001948_messages"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        944
+      ],
+      "id": "b6843710-b310-4391-ad7f-a8deaa0d571f",
+      "name": "RemoveQueue",
+      "credentials": {
+        "redis": {
+          "id": "HJ4exROZnABmGHJi",
+          "name": "Redis Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "67e4b51e-0b4a-4ecd-a2ef-f31e71d5ac55",
+              "name": "from",
+              "value": "={{ $json.message.from.id }}",
+              "type": "number"
+            },
+            {
+              "id": "99639bd4-b8f3-44dd-ada0-fa32e68d4da8",
+              "name": "message",
+              "value": "={{ $json.message }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1776,
+        416
+      ],
+      "id": "493eb90e-4372-40b1-aa7e-d3672965c5d8",
+      "name": "Edit Fields3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AddToQueue": {
+      "main": [
+        [
+          {
+            "node": "GetMessages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetMessages": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "KeepWaiting",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "EraseQueue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "GetMessages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EraseQueue": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "AddToQueue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6aa3944e-7366-46e8-b21f-b97dc246e5f0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ebc2315f6e933991dac8ebfce16326e227de1ed574b9a2155f84adb34043dad5"
+  },
+  "id": "Ft4OjlgKR2VmNgGg",
+  "tags": []
+}
